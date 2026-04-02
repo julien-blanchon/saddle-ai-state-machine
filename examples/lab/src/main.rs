@@ -1,6 +1,6 @@
-use saddle_ai_state_machine::*;
 use bevy::color::palettes::css;
 use bevy::prelude::*;
+use saddle_ai_state_machine::*;
 
 const GUARD_VISIBLE: GuardId = GuardId(1);
 const GUARD_HIDDEN: GuardId = GuardId(2);

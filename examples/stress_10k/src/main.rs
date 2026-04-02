@@ -1,5 +1,5 @@
-use saddle_ai_state_machine::*;
 use bevy::prelude::*;
+use saddle_ai_state_machine::*;
 
 fn main() {
     let mut app = App::new();

@@ -1,7 +1,7 @@
 use saddle_ai_state_machine_example_common as common;
 
-use saddle_ai_state_machine::*;
 use bevy::prelude::*;
+use saddle_ai_state_machine::*;
 
 const SCORE_GATHER: ScorerId = ScorerId(1);
 const SCORE_FLEE: ScorerId = ScorerId(2);

@@ -1,9 +1,9 @@
 use saddle_ai_state_machine_example_common as common;
 
-use saddle_ai_state_machine::*;
 use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
 use bevy::reflect::serde::{ReflectDeserializer, TypedReflectSerializer};
+use saddle_ai_state_machine::*;
 use serde::de::DeserializeSeed;
 
 #[derive(Resource, Default)]

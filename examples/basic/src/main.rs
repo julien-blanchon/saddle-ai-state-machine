@@ -1,7 +1,7 @@
 use saddle_ai_state_machine_example_common as common;
 
-use saddle_ai_state_machine::*;
 use bevy::prelude::*;
+use saddle_ai_state_machine::*;
 
 fn main() {
     let mut app = common::base_app("ai_state_machine basic");

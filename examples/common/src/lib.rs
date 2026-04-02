@@ -1,5 +1,5 @@
-use saddle_ai_state_machine::{StateEntered, StateExited, TransitionTriggered};
 use bevy::prelude::*;
+use saddle_ai_state_machine::{StateEntered, StateExited, TransitionTriggered};
 
 pub fn base_app(title: &str) -> App {
     let mut app = App::new();
