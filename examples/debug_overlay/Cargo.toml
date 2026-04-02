@@ -1,0 +1,13 @@
+[package]
+name = "saddle-ai-state-machine-example-debug-overlay"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+bevy = { workspace = true }
+saddle-ai-state-machine = { workspace = true }
+saddle-ai-state-machine-example-common = { path = "../common" }
+
+[lints]
+workspace = true

@@ -1,0 +1,25 @@
+[workspace]
+members = [
+    "common",
+    "basic",
+    "hierarchical",
+    "pushdown",
+    "utility",
+    "orthogonal_regions",
+    "delayed_transitions",
+    "debug_gizmos",
+    "debug_overlay",
+    "save_load",
+    "stress_10k",
+    "lab",
+]
+resolver = "3"
+
+[workspace.dependencies]
+bevy = { version = "0.18", features = ["serialize"] }
+saddle-ai-state-machine = { path = ".." }
+
+[workspace.lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"
+nonstandard_macro_braces = "warn"
