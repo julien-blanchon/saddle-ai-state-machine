@@ -1,10 +1,11 @@
 use bevy::color::palettes::css;
 use bevy::gizmos::config::GizmoConfigGroup;
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::definition::{StateId, TransitionId};
 
-#[derive(Clone, Debug, Default, PartialEq, Reflect)]
+#[derive(Clone, Debug, Default, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct DebugTraceConfig {
     pub capacity: usize,
     pub record_blocked: bool,

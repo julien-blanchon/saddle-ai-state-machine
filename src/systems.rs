@@ -12,7 +12,9 @@ use crate::definition::{
     UtilityPolicy,
 };
 use crate::hierarchy::{depth, least_common_ancestor, path_to_root};
-use crate::instance::{PendingTransition, StateMachineInstance, StateMachineStatus};
+use crate::instance::{
+    PendingTransition, StateMachineEvaluationMode, StateMachineInstance, StateMachineStatus,
+};
 use crate::messages::{
     StateEntered, StateExited, StateMachineSignal, TransitionBlocked, TransitionTriggered,
 };
@@ -78,9 +80,9 @@ pub fn intake_signals(
             if matches!(instance.status, StateMachineStatus::Uninitialized) {
                 apply_blackboard_overrides(&instance, &mut blackboard);
             }
-            ensure_runtime_shape(definition, &mut instance, Some(&blackboard));
+            ensure_runtime_shape(definition, &mut instance);
         } else {
-            ensure_runtime_shape(definition, &mut instance, None);
+            ensure_runtime_shape(definition, &mut instance);
         }
     }
 }
@@ -120,12 +122,11 @@ pub fn evaluate_transitions(world: &mut World) {
             if matches!(instance.status, StateMachineStatus::Uninitialized) {
                 apply_blackboard_overrides(&instance, &mut blackboard);
             }
-            ensure_runtime_shape(definition, &mut instance, Some(&blackboard));
+            ensure_runtime_shape(definition, &mut instance);
             if matches!(instance.status, StateMachineStatus::Uninitialized) {
                 initialize_instance(definition, &mut instance, &blackboard);
                 instance.status = StateMachineStatus::Active;
             }
-            instance.last_blackboard_revision = blackboard.revision;
         }
     }
 
@@ -136,6 +137,9 @@ pub fn evaluate_transitions(world: &mut World) {
             .iter(world)
             .filter_map(|(entity, instance, blackboard)| {
                 if !instance.is_active() {
+                    return None;
+                }
+                if !should_evaluate_instance(instance, blackboard) {
                     return None;
                 }
                 let definition = definitions.definition(instance.definition_id)?;
@@ -204,6 +208,20 @@ pub fn evaluate_transitions(world: &mut World) {
 
     drop(query);
     write_blocked_messages(world, blocked_messages);
+}
+
+fn should_evaluate_instance(instance: &StateMachineInstance, blackboard: &Blackboard) -> bool {
+    if matches!(instance.status, StateMachineStatus::Uninitialized) {
+        return true;
+    }
+
+    match instance.config.evaluation_mode {
+        StateMachineEvaluationMode::EveryFrame => true,
+        StateMachineEvaluationMode::OnSignalOrBlackboardChange => {
+            !instance.pending_signals.is_empty()
+                || blackboard.changed_since(instance.last_blackboard_revision)
+        }
+    }
 }
 
 pub fn execute_transitions(world: &mut World) {
@@ -902,11 +920,7 @@ fn apply_blackboard_overrides(instance: &StateMachineInstance, blackboard: &mut 
     }
 }
 
-fn ensure_runtime_shape(
-    definition: &StateMachineDefinition,
-    instance: &mut StateMachineInstance,
-    blackboard: Option<&Blackboard>,
-) {
+fn ensure_runtime_shape(definition: &StateMachineDefinition, instance: &mut StateMachineInstance) {
     if instance.history.len() != definition.states.len() {
         instance.history.resize(definition.states.len(), None);
     }
@@ -924,9 +938,6 @@ fn ensure_runtime_shape(
         instance
             .guard_true_for_seconds
             .resize(definition.transitions.len(), 0.0);
-    }
-    if let Some(blackboard) = blackboard {
-        instance.last_blackboard_revision = blackboard.revision;
     }
 }
 

@@ -259,6 +259,63 @@ fn transition_priority() {
 }
 
 #[test]
+fn on_change_evaluation_mode_sleeps_until_input_changes() {
+    let mut app = test_app();
+
+    let (mut builder, root) = simple_builder("event_driven");
+    let idle = builder.atomic_state("Idle");
+    let run = builder.atomic_state("Run");
+    builder
+        .add_state_to_region(idle, root)
+        .add_state_to_region(run, root)
+        .set_region_initial(root, idle)
+        .add_transition(TransitionDefinition::replace(idle, run).with_guard(GUARD_GO));
+
+    let def_id = register_definition(&mut app, builder.build().unwrap());
+    let schema = app
+        .world()
+        .resource::<StateMachineLibrary>()
+        .definition(def_id)
+        .unwrap()
+        .blackboard_schema
+        .clone();
+    let entity = app.world_mut().spawn((
+        StateMachineInstance::new(def_id).with_config(StateMachineInstanceConfig {
+            evaluation_mode: StateMachineEvaluationMode::OnSignalOrBlackboardChange,
+            ..default()
+        }),
+        Blackboard::from_schema(&schema),
+    )).id();
+
+    run_updates(&mut app, 1);
+    let initial_revision = app
+        .world()
+        .get::<StateMachineInstance>(entity)
+        .unwrap()
+        .last_blackboard_revision;
+
+    run_updates(&mut app, 1);
+    let second_revision = app
+        .world()
+        .get::<StateMachineInstance>(entity)
+        .unwrap()
+        .last_blackboard_revision;
+    assert_eq!(second_revision, initial_revision);
+    assert_eq!(active_leaf_names(&app, entity), vec!["Idle"]);
+
+    set_bool(&mut app, entity, "go", true);
+    run_updates(&mut app, 1);
+
+    let final_revision = app
+        .world()
+        .get::<StateMachineInstance>(entity)
+        .unwrap()
+        .last_blackboard_revision;
+    assert!(final_revision > second_revision);
+    assert_eq!(active_leaf_names(&app, entity), vec!["Run"]);
+}
+
+#[test]
 fn transition_tiebreak_declaration_order() {
     let mut app = test_app();
     let (mut builder, root) = simple_builder("declaration_order");

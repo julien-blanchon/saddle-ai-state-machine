@@ -1,6 +1,7 @@
 use bevy::color::palettes::css;
 use bevy::prelude::*;
 use saddle_ai_state_machine::*;
+use saddle_pane::prelude::*;
 
 const GUARD_VISIBLE: GuardId = GuardId(1);
 const GUARD_HIDDEN: GuardId = GuardId(2);
@@ -20,6 +21,32 @@ struct LabClock {
     stun_cycle: Option<u32>,
 }
 
+#[derive(Resource, Clone, Pane)]
+#[pane(title = "FSM Lab")]
+struct StateMachineLabPane {
+    #[pane(slider, min = 0.1, max = 2.5, step = 0.05)]
+    time_scale: f32,
+    event_driven: bool,
+    #[pane(slider, min = 1.0, max = 8.0, step = 0.1)]
+    visibility_radius: f32,
+    #[pane(slider, min = 0.5, max = 4.0, step = 0.1)]
+    attack_radius: f32,
+    #[pane(slider, min = 1.0, max = 12.0, step = 0.25)]
+    stun_interval: f32,
+}
+
+impl Default for StateMachineLabPane {
+    fn default() -> Self {
+        Self {
+            time_scale: 1.0,
+            event_driven: false,
+            visibility_radius: 4.6,
+            attack_radius: 1.8,
+            stun_interval: 5.5,
+        }
+    }
+}
+
 #[derive(Resource, Clone, Copy)]
 struct LabKeys {
     target_visible: BlackboardKeyId,
@@ -28,10 +55,28 @@ struct LabKeys {
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins((DefaultPlugins, AiStateMachinePlugin::always_on(Update)));
+    app.add_plugins(DefaultPlugins);
+    app.add_plugins((
+        bevy_flair::FlairPlugin,
+        bevy_input_focus::InputDispatchPlugin,
+        bevy_ui_widgets::UiWidgetsPlugins,
+        bevy_input_focus::tab_navigation::TabNavigationPlugin,
+        saddle_pane::PanePlugin,
+        AiStateMachinePlugin::always_on(Update),
+    ));
+    app.register_pane::<StateMachineLabPane>();
     app.init_resource::<LabClock>();
+    app.init_resource::<StateMachineLabPane>();
     app.add_systems(Startup, setup);
-    app.add_systems(Update, (drive_machine, animate_target, sync_annotations));
+    app.add_systems(
+        Update,
+        (
+            sync_pane_to_runtime,
+            drive_machine,
+            animate_target,
+            sync_annotations,
+        ),
+    );
 
     {
         let mut callbacks = app.world_mut().resource_mut::<StateMachineCallbacks>();
@@ -62,6 +107,26 @@ fn main() {
     }
 
     app.run();
+}
+
+fn sync_pane_to_runtime(
+    pane: Res<StateMachineLabPane>,
+    mut virtual_time: ResMut<Time<Virtual>>,
+    mut machines: Query<&mut StateMachineInstance, With<LabAgent>>,
+) {
+    if !pane.is_changed() {
+        return;
+    }
+
+    virtual_time.set_relative_speed(pane.time_scale.max(0.1));
+
+    for mut instance in &mut machines {
+        instance.config.evaluation_mode = if pane.event_driven {
+            StateMachineEvaluationMode::OnSignalOrBlackboardChange
+        } else {
+            StateMachineEvaluationMode::EveryFrame
+        };
+    }
 }
 
 fn setup(
@@ -198,26 +263,34 @@ fn setup(
 
 fn drive_machine(
     time: Res<Time>,
+    pane: Res<StateMachineLabPane>,
     keys: Res<LabKeys>,
     mut clock: ResMut<LabClock>,
     mut signals: MessageWriter<StateMachineSignal>,
-    mut query: Query<(Entity, &mut Blackboard), With<LabAgent>>,
+    mut agents: Query<(Entity, &Transform, &mut Blackboard), With<LabAgent>>,
+    targets: Query<&Transform, With<LabTarget>>,
 ) {
     clock.elapsed += time.delta_secs();
-    let cycle = (clock.elapsed / 10.0).floor() as u32;
-    let phase = clock.elapsed % 10.0;
-    let Ok((entity, mut blackboard)) = query.single_mut() else {
+    let stun_interval = pane.stun_interval.max(0.25);
+    let cycle = (clock.elapsed / stun_interval).floor() as u32;
+    let Ok((entity, agent_transform, mut blackboard)) = agents.single_mut() else {
+        return;
+    };
+    let Ok(target_transform) = targets.single() else {
         return;
     };
 
-    let target_visible = (1.5..8.0).contains(&phase);
-    let in_attack_range = (4.0..5.5).contains(&phase) || (6.8..7.6).contains(&phase);
+    let distance = agent_transform
+        .translation
+        .distance(target_transform.translation);
+    let target_visible = distance <= pane.visibility_radius;
+    let in_attack_range = distance <= pane.attack_radius;
     blackboard.set(keys.target_visible, target_visible).unwrap();
     blackboard
         .set(keys.in_attack_range, in_attack_range)
         .unwrap();
 
-    if phase >= 5.5 && clock.stun_cycle != Some(cycle) {
+    if target_visible && clock.stun_cycle != Some(cycle) {
         signals.write(StateMachineSignal::new(entity, SIGNAL_STUN));
         clock.stun_cycle = Some(cycle);
     }

@@ -121,6 +121,10 @@ Supported value types in v0.1:
 - `Vec3`
 - `String`
 
+## Asset Definitions
+
+Machine definitions can now enter the runtime through `StateMachineDefinitionAssetLoader` as well as pure Rust builders. Loaded assets still register into `StateMachineLibrary`, so the runtime keeps one definition path after load time: built and asset-authored machines share the same validation, IDs, and execution pipeline.
+
 ## Callbacks
 
 Guard, action, and scorer callbacks are registered once in `StateMachineCallbacks` and referenced by stable IDs from the definition:

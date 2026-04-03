@@ -104,8 +104,10 @@ fn setup_machine(mut commands: Commands, mut library: ResMut<StateMachineLibrary
 - Delayed `after` transitions
 - Any-state transitions
 - Utility-scored transitions
+- RON asset loading through `StateMachineDefinitionAsset` and `StateMachineDefinitionAssetLoader`
 - Typed blackboards with schema-aware writes and revision tracking
 - Per-instance blackboard default overrides
+- Event-driven evaluation with `StateMachineEvaluationMode::OnSignalOrBlackboardChange`
 - Reflection-backed runtime inspection and serialization
 - Trace buffers and blocked-transition reporting
 
@@ -130,6 +132,30 @@ Deferred in v0.1:
 | `debug_overlay` | Rich showcase with UI overlay, debug traces, push interrupts, and a moving target | `cargo run -p saddle-ai-state-machine-example-debug-overlay` |
 | `save_load` | Reflection-backed instance + blackboard round-trip | `cargo run -p saddle-ai-state-machine-example-save-load` |
 | `stress_10k` | Large-instance stress smoke for runtime stability | `cargo run -p saddle-ai-state-machine-example-stress-10k` |
+| `layered_ai` | Batch-level integration demo: state machine + behavior tree + utility AI + GOAP in one sandbox | `cargo run -p saddle-ai-state-machine-example-layered-ai` |
+
+All windowed examples now expose live tuning through `saddle-pane`.
+
+## Asset Loading
+
+Definitions can be authored as RON assets and registered at runtime:
+
+```rust
+use bevy::prelude::*;
+use saddle_ai_state_machine::{
+    AiStateMachinePlugin, StateMachineDefinitionAsset, StateMachineLibrary,
+};
+
+fn register_loaded_machine(
+    assets: Res<Assets<StateMachineDefinitionAsset>>,
+    handle: Res<Handle<StateMachineDefinitionAsset>>,
+    mut library: ResMut<StateMachineLibrary>,
+) {
+    if let Some(asset) = assets.get(handle.as_ref()) {
+        let _definition_id = asset.register(&mut library).unwrap();
+    }
+}
+```
 
 ## More Docs
 

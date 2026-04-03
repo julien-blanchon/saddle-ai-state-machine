@@ -9,6 +9,8 @@ description = "Reusable hierarchical finite state machine / statechart runtime f
 
 [dependencies]
 bevy = { version = "0.18", features = ["serialize"] }
+ron = "0.10"
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 serde = { version = "1", features = ["derive"] }

@@ -2,6 +2,7 @@ use bevy::ecs::intern::Interned;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 
+pub mod assets;
 pub mod blackboard;
 pub mod builder;
 pub mod debug;
@@ -16,6 +17,10 @@ pub mod timers;
 pub mod transitions;
 pub mod validation;
 
+pub use assets::{
+    StateMachineDefinitionAsset, StateMachineDefinitionAssetLoader,
+    StateMachineDefinitionAssetLoaderError,
+};
 pub use blackboard::{
     Blackboard, BlackboardError, BlackboardKeyDefinition, BlackboardKeyId, BlackboardValue,
     BlackboardValueType,
@@ -32,8 +37,9 @@ pub use definition::{
     TransitionSource, TransitionTrigger, UtilityPolicy,
 };
 pub use instance::{
-    InstanceBlackboardOverride, InstanceThresholdOverride, PendingTransition, StateMachineInstance,
-    StateMachineInstanceConfig, StateMachineStatus,
+    InstanceBlackboardOverride, InstanceThresholdOverride, PendingTransition,
+    StateMachineEvaluationMode, StateMachineInstance, StateMachineInstanceConfig,
+    StateMachineStatus,
 };
 pub use messages::{
     StateEntered, StateExited, StateMachineSignal, TransitionBlocked, TransitionTriggered,
@@ -87,6 +93,8 @@ impl Plugin for AiStateMachinePlugin {
         app.init_resource::<StateMachineLibrary>()
             .init_resource::<StateMachineCallbacks>()
             .init_gizmo_group::<AiDebugGizmos>()
+            .init_asset::<StateMachineDefinitionAsset>()
+            .register_asset_loader(StateMachineDefinitionAssetLoader)
             .add_message::<StateMachineSignal>()
             .add_message::<StateEntered>()
             .add_message::<StateExited>()
@@ -117,11 +125,13 @@ impl Plugin for AiStateMachinePlugin {
             .register_type::<StateDefinition>()
             .register_type::<StateEntered>()
             .register_type::<StateExited>()
+            .register_type::<StateMachineDefinitionAsset>()
             .register_type::<StateMachineSignal>()
             .register_type::<StateId>()
             .register_type::<StateKind>()
             .register_type::<StateMachineDefinition>()
             .register_type::<StateMachineDefinitionId>()
+            .register_type::<StateMachineEvaluationMode>()
             .register_type::<StateMachineInstance>()
             .register_type::<StateMachineInstanceConfig>()
             .register_type::<StateMachineLibrary>()

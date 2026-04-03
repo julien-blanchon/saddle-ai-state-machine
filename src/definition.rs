@@ -1,33 +1,138 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::blackboard::{BlackboardKeyDefinition, BlackboardKeyId};
 use crate::debug::DebugTraceConfig;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Reflect,
+    Serialize,
+    Deserialize,
+)]
 pub struct StateMachineDefinitionId(pub u64);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Reflect,
+    Serialize,
+    Deserialize,
+)]
 pub struct StateId(pub u16);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Reflect,
+    Serialize,
+    Deserialize,
+)]
 pub struct RegionId(pub u16);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Reflect,
+    Serialize,
+    Deserialize,
+)]
 pub struct TransitionId(pub u16);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Reflect,
+    Serialize,
+    Deserialize,
+)]
 pub struct GuardId(pub u16);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Reflect,
+    Serialize,
+    Deserialize,
+)]
 pub struct ActionId(pub u16);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Reflect,
+    Serialize,
+    Deserialize,
+)]
 pub struct ScorerId(pub u16);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Reflect,
+    Serialize,
+    Deserialize,
+)]
 pub struct SignalId(pub u16);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 pub enum HistoryMode {
     #[default]
     None,
@@ -35,7 +140,7 @@ pub enum HistoryMode {
     Deep,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 pub enum TransitionMode {
     #[default]
     Immediate,
@@ -43,7 +148,7 @@ pub enum TransitionMode {
     Force,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 pub enum TransitionOperation {
     #[default]
     Replace,
@@ -51,7 +156,7 @@ pub enum TransitionOperation {
     Pop,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 pub enum TransitionTrigger {
     #[default]
     Automatic,
@@ -73,7 +178,7 @@ impl TransitionTrigger {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 pub enum UtilityPolicy {
     #[default]
     Disabled,
@@ -100,7 +205,7 @@ impl UtilityPolicy {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 pub enum StateKind {
     #[default]
     Atomic,
@@ -110,7 +215,7 @@ pub enum StateKind {
     Transient,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 pub enum TransitionSource {
     State(StateId),
     #[default]
@@ -123,7 +228,7 @@ impl From<StateId> for TransitionSource {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct StateDefinition {
     pub id: StateId,
     pub name: String,
@@ -141,7 +246,7 @@ pub struct StateDefinition {
     pub always_tick: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct RegionDefinition {
     pub id: RegionId,
     pub name: String,
@@ -150,7 +255,7 @@ pub struct RegionDefinition {
     pub initial_state: Option<StateId>,
 }
 
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct TransitionDefinition {
     pub id: TransitionId,
     pub source: TransitionSource,
@@ -250,7 +355,7 @@ impl TransitionDefinition {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct StateMachineDefinition {
     pub id: StateMachineDefinitionId,
     pub name: String,

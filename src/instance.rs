@@ -1,17 +1,18 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::blackboard::{BlackboardKeyId, BlackboardValue};
 use crate::debug::{DebugTraceConfig, StateMachineTrace, TransitionBlockedReason};
 use crate::definition::{SignalId, StateId, StateMachineDefinitionId, TransitionId};
 use crate::stack::{ActiveRegionState, HistorySnapshot, StateStack};
 
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct InstanceBlackboardOverride {
     pub key: BlackboardKeyId,
     pub value: BlackboardValue,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Reflect)]
+#[derive(Clone, Debug, Default, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct InstanceThresholdOverride {
     pub transition_id: TransitionId,
     pub minimum_score: f32,
@@ -35,8 +36,16 @@ pub enum StateMachineStatus {
     Inactive,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect, Serialize, Deserialize)]
+pub enum StateMachineEvaluationMode {
+    #[default]
+    EveryFrame,
+    OnSignalOrBlackboardChange,
+}
+
 #[derive(Clone, Debug, PartialEq, Reflect)]
 pub struct StateMachineInstanceConfig {
+    pub evaluation_mode: StateMachineEvaluationMode,
     pub enabled_regions: Vec<crate::definition::RegionId>,
     pub trace_config: DebugTraceConfig,
     pub max_internal_steps: usize,
@@ -48,6 +57,7 @@ pub struct StateMachineInstanceConfig {
 impl Default for StateMachineInstanceConfig {
     fn default() -> Self {
         Self {
+            evaluation_mode: StateMachineEvaluationMode::EveryFrame,
             enabled_regions: Vec::new(),
             trace_config: DebugTraceConfig {
                 capacity: 32,

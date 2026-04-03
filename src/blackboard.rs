@@ -1,9 +1,23 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Reflect,
+    Serialize,
+    Deserialize,
+)]
 pub struct BlackboardKeyId(pub u16);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Reflect, Serialize, Deserialize)]
 pub enum BlackboardValueType {
     F32,
     I32,
@@ -14,7 +28,7 @@ pub enum BlackboardValueType {
     String,
 }
 
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect, Serialize, Deserialize)]
 pub enum BlackboardValue {
     F32(f32),
     I32(i32),
@@ -87,7 +101,7 @@ impl From<&str> for BlackboardValue {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct BlackboardKeyDefinition {
     pub id: BlackboardKeyId,
     pub name: String,

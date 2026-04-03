@@ -1,5 +1,5 @@
 [package]
-name = "saddle-ai-state-machine-lab"
+name = "saddle-ai-state-machine-example-layered-ai"
 version = "0.1.0"
 edition = "2024"
 publish = false
@@ -10,6 +10,9 @@ bevy_flair = { workspace = true }
 bevy_input_focus = { workspace = true }
 bevy_ui_widgets = { workspace = true }
 saddle-ai-state-machine = { workspace = true }
+saddle-ai-behavior-tree = { git = "https://github.com/julien-blanchon/saddle-ai-behavior-tree" }
+saddle-ai-goap = { git = "https://github.com/julien-blanchon/saddle-ai-goap" }
+saddle-ai-utility-ai = { git = "https://github.com/julien-blanchon/saddle-ai-utility-ai" }
 saddle-pane = { workspace = true }
 
 [lints]

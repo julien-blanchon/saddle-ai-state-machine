@@ -16,6 +16,7 @@ Use `AiStateMachinePlugin::always_on(update_schedule)` when the machine should s
 
 | Field | Type | Default | Effect |
 | --- | --- | --- | --- |
+| `evaluation_mode` | `StateMachineEvaluationMode` | `EveryFrame` | `OnSignalOrBlackboardChange` skips transition evaluation until a queued signal or blackboard revision change wakes the instance |
 | `enabled_regions` | `Vec<RegionId>` | empty | Empty means all regions are enabled. Otherwise only listed regions enter/update. |
 | `trace_config.capacity` | `usize` | `32` | Maximum number of trace entries stored per instance |
 | `trace_config.record_blocked` | `bool` | `true` | Controls whether blocked transitions are recorded in the trace |
@@ -98,6 +99,15 @@ The crate registers a custom `GizmoConfigGroup` named `AiDebugGizmos`, so consum
 | `StateExited` | After a state exits during transition execution |
 | `TransitionTriggered` | When a transition is successfully applied |
 | `TransitionBlocked` | When the best deterministic candidate is blocked; trace config only controls whether the blocked result is stored in the instance trace |
+
+## Asset Loading
+
+`StateMachineDefinitionAssetLoader` registers the `.fsm.ron` extension and produces `StateMachineDefinitionAsset`.
+
+| Type | Effect |
+| --- | --- |
+| `StateMachineDefinitionAsset::definition` | Serializable machine definition payload |
+| `StateMachineDefinitionAsset::register(...)` | Validates and inserts the loaded definition into `StateMachineLibrary` |
 
 ## Deferred Tuning Areas
 
