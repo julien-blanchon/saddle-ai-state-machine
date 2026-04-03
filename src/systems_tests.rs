@@ -279,13 +279,16 @@ fn on_change_evaluation_mode_sleeps_until_input_changes() {
         .unwrap()
         .blackboard_schema
         .clone();
-    let entity = app.world_mut().spawn((
-        StateMachineInstance::new(def_id).with_config(StateMachineInstanceConfig {
-            evaluation_mode: StateMachineEvaluationMode::OnSignalOrBlackboardChange,
-            ..default()
-        }),
-        Blackboard::from_schema(&schema),
-    )).id();
+    let entity = app
+        .world_mut()
+        .spawn((
+            StateMachineInstance::new(def_id).with_config(StateMachineInstanceConfig {
+                evaluation_mode: StateMachineEvaluationMode::OnSignalOrBlackboardChange,
+                ..default()
+            }),
+            Blackboard::from_schema(&schema),
+        ))
+        .id();
 
     run_updates(&mut app, 1);
     let initial_revision = app
