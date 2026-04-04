@@ -1,9 +1,13 @@
+use bevy::asset::AssetPlugin;
+use bevy::gizmos::GizmoPlugin;
 use bevy::prelude::*;
 use saddle_ai_state_machine::*;
 
 fn main() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
+        .add_plugins(AssetPlugin::default())
+        .add_plugins(GizmoPlugin)
         .add_plugins(AiStateMachinePlugin::always_on(Update))
         .add_systems(Startup, setup_machines)
         .add_systems(Update, report_once);

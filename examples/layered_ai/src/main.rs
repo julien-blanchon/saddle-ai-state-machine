@@ -588,8 +588,8 @@ fn sync_guard_inputs(
     target_query: Query<&Transform, With<OrbitingTarget>>,
     mut blackboards: Query<&mut fsm::Blackboard, With<Guard>>,
     mut bt_blackboards: Query<&mut bt::BehaviorTreeBlackboard, With<Guard>>,
-    mut attack_inputs: Query<&mut uai::ConsiderationInput, With<AttackOpportunity>>,
-    mut retreat_inputs: Query<&mut uai::ConsiderationInput, With<RetreatPressure>>,
+    mut attack_inputs: Query<&mut uai::ConsiderationInput, (With<AttackOpportunity>, Without<RetreatPressure>)>,
+    mut retreat_inputs: Query<&mut uai::ConsiderationInput, (With<RetreatPressure>, Without<AttackOpportunity>)>,
 ) {
     let Ok(guard_transform) = guard_query.get(entities.guard) else {
         return;

@@ -2,7 +2,7 @@ use saddle_ai_state_machine_example_common as common;
 
 use bevy::prelude::*;
 use bevy::reflect::TypeRegistry;
-use bevy::reflect::serde::{ReflectDeserializer, TypedReflectSerializer};
+use bevy::reflect::serde::{ReflectDeserializer, ReflectSerializer};
 use saddle_ai_state_machine::*;
 use serde::de::DeserializeSeed;
 
@@ -81,9 +81,9 @@ fn save_snapshot_once(
 
     let registry = registry.read();
     let instance_json =
-        serde_json::to_string_pretty(&TypedReflectSerializer::new(instance, &registry)).unwrap();
+        serde_json::to_string_pretty(&ReflectSerializer::new(instance, &registry)).unwrap();
     let blackboard_json =
-        serde_json::to_string_pretty(&TypedReflectSerializer::new(blackboard, &registry)).unwrap();
+        serde_json::to_string_pretty(&ReflectSerializer::new(blackboard, &registry)).unwrap();
 
     let restored_instance: StateMachineInstance = deserialize_reflect(&registry, &instance_json);
     let restored_blackboard: Blackboard = deserialize_reflect(&registry, &blackboard_json);

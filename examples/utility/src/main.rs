@@ -90,7 +90,7 @@ fn drive_scores(
         let mut blackboard = blackboards.get_mut(entity).unwrap();
         let gather_value = 0.5 + 0.5 * clock.0.sin();
         let flee_value = 1.0 - gather_value;
-        blackboard.set(gather, gather_value).unwrap();
-        blackboard.set(flee, flee_value).unwrap();
+        let _ = blackboard.set(gather, gather_value);
+        let _ = blackboard.set(flee, flee_value);
     }
 }
