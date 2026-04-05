@@ -4994,8 +4994,11 @@ name = "saddle-ai-state-machine-example-utility"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_flair",
+ "bevy_input_focus",
+ "bevy_ui_widgets",
  "saddle-ai-state-machine",
- "saddle-ai-state-machine-example-common",
+ "saddle-pane",
 ]
 
 [[package]]

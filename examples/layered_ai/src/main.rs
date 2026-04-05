@@ -175,17 +175,26 @@ fn setup(
     ));
     commands.spawn((
         Name::new("Guard Lane"),
-        Sprite::from_color(Color::srgba(0.15, 0.20, 0.28, 0.95), Vec2::new(1360.0, 280.0)),
+        Sprite::from_color(
+            Color::srgba(0.15, 0.20, 0.28, 0.95),
+            Vec2::new(1360.0, 280.0),
+        ),
         Transform::from_xyz(0.0, 185.0, -10.0),
     ));
     commands.spawn((
         Name::new("Worker Lane"),
-        Sprite::from_color(Color::srgba(0.11, 0.18, 0.16, 0.95), Vec2::new(1360.0, 240.0)),
+        Sprite::from_color(
+            Color::srgba(0.11, 0.18, 0.16, 0.95),
+            Vec2::new(1360.0, 240.0),
+        ),
         Transform::from_xyz(0.0, -170.0, -10.0),
     ));
     commands.spawn((
         Name::new("HUD Card"),
-        Sprite::from_color(Color::srgba(0.01, 0.02, 0.03, 0.88), Vec2::new(430.0, 780.0)),
+        Sprite::from_color(
+            Color::srgba(0.01, 0.02, 0.03, 0.88),
+            Vec2::new(430.0, 780.0),
+        ),
         Transform::from_xyz(495.0, 0.0, -8.0),
     ));
     for (name, label, x, y) in [
@@ -223,7 +232,10 @@ fn setup(
             Guard,
             fsm::StateMachineInstance::new(fsm_definition_id),
             fsm::Blackboard::from_schema(
-                &state_machines.definition(fsm_definition_id).unwrap().blackboard_schema,
+                &state_machines
+                    .definition(fsm_definition_id)
+                    .unwrap()
+                    .blackboard_schema,
             ),
             bt::BehaviorTreeAgent::new(tree_definition_id).with_config(bt::BehaviorTreeConfig {
                 restart_on_completion: true,
@@ -251,10 +263,7 @@ fn setup(
 
     commands.entity(guard).with_children(|guard_children| {
         guard_children
-            .spawn((
-                Name::new("Attack"),
-                uai::UtilityAction::new("attack"),
-            ))
+            .spawn((Name::new("Attack"), uai::UtilityAction::new("attack")))
             .with_children(|action| {
                 action.spawn((
                     Name::new("Attack Opportunity"),
@@ -265,10 +274,7 @@ fn setup(
             });
 
         guard_children
-            .spawn((
-                Name::new("Retreat"),
-                uai::UtilityAction::new("retreat"),
-            ))
+            .spawn((Name::new("Retreat"), uai::UtilityAction::new("retreat")))
             .with_children(|action| {
                 action.spawn((
                     Name::new("Retreat Pressure"),
@@ -398,7 +404,8 @@ fn build_guard_behavior_tree(
     let chase = builder.action("Chase", "chase");
     let chase_branch = builder.sequence("ChaseBranch", [can_chase, chase]);
     let hold = builder.action("Hold", "hold");
-    let root = builder.reactive_selector("Root", bt::AbortPolicy::LowerPriority, [chase_branch, hold]);
+    let root =
+        builder.reactive_selector("Root", bt::AbortPolicy::LowerPriority, [chase_branch, hold]);
     builder.set_root(root);
     let definition_id = library.register(builder.build().unwrap()).unwrap();
 
@@ -588,8 +595,14 @@ fn sync_guard_inputs(
     target_query: Query<&Transform, With<OrbitingTarget>>,
     mut blackboards: Query<&mut fsm::Blackboard, With<Guard>>,
     mut bt_blackboards: Query<&mut bt::BehaviorTreeBlackboard, With<Guard>>,
-    mut attack_inputs: Query<&mut uai::ConsiderationInput, (With<AttackOpportunity>, Without<RetreatPressure>)>,
-    mut retreat_inputs: Query<&mut uai::ConsiderationInput, (With<RetreatPressure>, Without<AttackOpportunity>)>,
+    mut attack_inputs: Query<
+        &mut uai::ConsiderationInput,
+        (With<AttackOpportunity>, Without<RetreatPressure>),
+    >,
+    mut retreat_inputs: Query<
+        &mut uai::ConsiderationInput,
+        (With<RetreatPressure>, Without<AttackOpportunity>),
+    >,
 ) {
     let Ok(guard_transform) = guard_query.get(entities.guard) else {
         return;
@@ -723,7 +736,11 @@ fn tint_actors(
     ) {
         let state_name = instance
             .active_leaf()
-            .and_then(|state_id| state_machines.definition(instance.definition_id)?.state(state_id))
+            .and_then(|state_id| {
+                state_machines
+                    .definition(instance.definition_id)?
+                    .state(state_id)
+            })
             .map(|state| state.name.as_str())
             .unwrap_or("Patrol");
 
@@ -769,7 +786,11 @@ fn update_overlay(
         .and_then(|instance| {
             instance
                 .active_leaf()
-                .and_then(|state_id| state_machine_library.definition(instance.definition_id)?.state(state_id))
+                .and_then(|state_id| {
+                    state_machine_library
+                        .definition(instance.definition_id)?
+                        .state(state_id)
+                })
                 .map(|state| state.name.clone())
         })
         .unwrap_or_else(|| "Unknown".into());
@@ -790,9 +811,17 @@ fn update_overlay(
     let worker_step = worker_runtime
         .get(entities.worker)
         .ok()
-        .and_then(|runtime| runtime.active_action.as_ref().map(|action| action.action_name.clone()))
+        .and_then(|runtime| {
+            runtime
+                .active_action
+                .as_ref()
+                .map(|action| action.action_name.clone())
+        })
         .unwrap_or_else(|| "Waiting".into());
-    let worker_inventory = worker_inventory.get(entities.worker).copied().unwrap_or_default();
+    let worker_inventory = worker_inventory
+        .get(entities.worker)
+        .copied()
+        .unwrap_or_default();
 
     text.0 = format!(
         "Guard Layering\n\

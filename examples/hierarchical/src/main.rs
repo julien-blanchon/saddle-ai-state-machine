@@ -3,7 +3,8 @@
 //! Demonstrates compound (hierarchical) states: the root has `Idle` and a
 //! compound `Combat` state. `Combat` contains its own sub-region with `Windup`
 //! and `Strike`. A blackboard guard controls the Idle → Combat transition,
-//! togglable from the pane.
+//! togglable via keyboard or the pane. An on-screen HUD shows the full state
+//! path, hierarchy, and recent transitions.
 
 use bevy::prelude::*;
 use saddle_ai_state_machine::{
@@ -26,19 +27,36 @@ struct HierarchicalPane {
     pub enter_combat: bool,
     #[pane(monitor)]
     active_state: String,
+    #[pane(monitor)]
+    state_path: String,
 }
 
 impl Default for HierarchicalPane {
     fn default() -> Self {
         Self {
             time_scale: 1.0,
-            enter_combat: true,
+            enter_combat: false,
             active_state: "Idle".into(),
+            state_path: "Idle".into(),
         }
     }
 }
 
+// ---------------------------------------------------------------------------
+// Markers
+// ---------------------------------------------------------------------------
+
+#[derive(Component)]
+struct Agent;
+
+#[derive(Component)]
+struct HudText;
+
+#[derive(Component)]
+struct TransitionLog;
+
 const GUARD_ENTER: GuardId = GuardId(1);
+const GUARD_EXIT: GuardId = GuardId(2);
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -69,26 +87,35 @@ fn main() {
     ))
     .register_pane::<HierarchicalPane>()
     .add_plugins(AiStateMachinePlugin::always_on(Update))
-    .add_systems(Startup, (setup_scene, setup_machine))
+    .add_systems(Startup, (setup_scene, setup_machine, setup_hud))
     .add_systems(
         Update,
         (
             sync_pane_to_runtime,
+            handle_keyboard,
             update_sphere_color,
+            update_hud,
             update_pane_monitors,
-            log_messages,
+            update_transition_log,
         ),
     );
 
-    // Register guard callback — reads the `enter` blackboard key
-    app.world_mut()
-        .resource_mut::<StateMachineCallbacks>()
-        .register_guard(GUARD_ENTER, |_, _, definition, _, blackboard, _| {
+    // Register guard callbacks
+    {
+        let mut callbacks = app.world_mut().resource_mut::<StateMachineCallbacks>();
+        callbacks.register_guard(GUARD_ENTER, |_, _, definition, _, blackboard, _| {
             blackboard
                 .get_bool(definition.find_blackboard_key("enter").unwrap())
                 .unwrap()
                 .unwrap_or(false)
         });
+        callbacks.register_guard(GUARD_EXIT, |_, _, definition, _, blackboard, _| {
+            !blackboard
+                .get_bool(definition.find_blackboard_key("enter").unwrap())
+                .unwrap()
+                .unwrap_or(false)
+        });
+    }
 
     app.run();
 }
@@ -105,7 +132,7 @@ fn setup_scene(
     commands.spawn((
         Name::new("Main Camera"),
         Camera3d::default(),
-        Transform::from_xyz(0.0, 7.5, 14.0).looking_at(Vec3::new(0.0, 1.0, 0.0), Vec3::Y),
+        Transform::from_xyz(0.0, 5.5, 10.0).looking_at(Vec3::new(0.0, 1.2, 0.0), Vec3::Y),
     ));
     commands.spawn((
         Name::new("Key Light"),
@@ -115,6 +142,15 @@ fn setup_scene(
             ..default()
         },
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -0.95, -0.55, 0.0)),
+    ));
+    commands.spawn((
+        Name::new("Fill Light"),
+        PointLight {
+            intensity: 400_000.0,
+            range: 60.0,
+            ..default()
+        },
+        Transform::from_xyz(-4.0, 6.0, -3.0),
     ));
     commands.spawn((
         Name::new("Arena Floor"),
@@ -140,7 +176,12 @@ fn setup_machine(
     let mut builder = StateMachineBuilder::new("hierarchical");
 
     // Blackboard key: pane-driven toggle to enter combat
-    builder.blackboard_key("enter", BlackboardValueType::Bool, false, Some(true.into()));
+    builder.blackboard_key(
+        "enter",
+        BlackboardValueType::Bool,
+        false,
+        Some(false.into()),
+    );
 
     let root = builder.root_region("root");
     let idle = builder.atomic_state("Idle");
@@ -158,16 +199,23 @@ fn setup_machine(
         .set_region_initial(combat_region, windup)
         // Idle → Combat: gated by the `enter` guard
         .add_transition(TransitionDefinition::replace(idle, combat).with_guard(GUARD_ENTER))
-        // Inside Combat: Windup → Strike after 0.8s
+        // Combat → Idle: when `enter` becomes false
+        .add_transition(TransitionDefinition::replace(combat, idle).with_guard(GUARD_EXIT))
+        // Inside Combat: Windup ↔ Strike cycling
         .add_transition(
             TransitionDefinition::replace(windup, strike)
                 .with_trigger(TransitionTrigger::after_seconds(0.8)),
+        )
+        .add_transition(
+            TransitionDefinition::replace(strike, windup)
+                .with_trigger(TransitionTrigger::after_seconds(0.6)),
         );
 
     let definition_id = definitions.register(builder.build().unwrap()).unwrap();
 
     commands.spawn((
-        Name::new("HierarchicalMachine"),
+        Name::new("HierarchicalAgent"),
+        Agent,
         StateMachineInstance::new(definition_id),
         Mesh3d(meshes.add(Sphere::new(0.55).mesh().uv(32, 18))),
         MeshMaterial3d(materials.add(StandardMaterial {
@@ -177,8 +225,90 @@ fn setup_machine(
             perceptual_roughness: 0.38,
             ..default()
         })),
-        Transform::from_xyz(0.0, 0.5, 0.0),
+        Transform::from_xyz(0.0, 0.55, 0.0),
     ));
+}
+
+// ---------------------------------------------------------------------------
+// HUD
+// ---------------------------------------------------------------------------
+
+fn setup_hud(mut commands: Commands) {
+    // State display (top-left)
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: px(16.0),
+                left: px(16.0),
+                width: px(380.0),
+                padding: UiRect::all(px(14.0)),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(6.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.02, 0.04, 0.08, 0.88)),
+        ))
+        .with_child((
+            Text::new("State: Idle"),
+            TextFont::from_font_size(18.0),
+            TextColor(Color::WHITE),
+            HudText,
+        ));
+
+    // Transition log (bottom-left)
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: px(16.0),
+                left: px(16.0),
+                width: px(360.0),
+                padding: UiRect::all(px(12.0)),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.02, 0.04, 0.08, 0.82)),
+        ))
+        .with_child((
+            Text::new("Transition log:\n  (waiting...)"),
+            TextFont::from_font_size(13.0),
+            TextColor(Color::srgb(0.7, 0.75, 0.8)),
+            TransitionLog,
+        ));
+
+    // Instructions (top-right)
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: px(16.0),
+                right: px(16.0),
+                width: px(280.0),
+                padding: UiRect::all(px(12.0)),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.02, 0.04, 0.08, 0.82)),
+        ))
+        .with_child((
+            Text::new(
+                "Controls:\n\
+                 [C] Toggle combat mode\n\n\
+                 Hierarchy:\n\
+                 Root\n\
+                   Idle (leaf)\n\
+                   Combat (compound)\n\
+                     Windup (leaf)\n\
+                     Strike (leaf)\n\n\
+                 Press C to enter Combat.\n\
+                 Inside Combat, Windup and\n\
+                 Strike cycle on timers.\n\
+                 Press C again to exit.",
+            ),
+            TextFont::from_font_size(13.0),
+            TextColor(Color::srgb(0.6, 0.65, 0.7)),
+        ));
 }
 
 // ---------------------------------------------------------------------------
@@ -189,7 +319,7 @@ fn sync_pane_to_runtime(
     pane: Res<HierarchicalPane>,
     mut virtual_time: ResMut<Time<Virtual>>,
     library: Res<StateMachineLibrary>,
-    mut machines: Query<(&StateMachineInstance, &mut Blackboard)>,
+    mut machines: Query<(&StateMachineInstance, &mut Blackboard), With<Agent>>,
 ) {
     if !pane.is_changed() {
         return;
@@ -207,15 +337,33 @@ fn sync_pane_to_runtime(
 }
 
 // ---------------------------------------------------------------------------
+// Keyboard
+// ---------------------------------------------------------------------------
+
+fn handle_keyboard(keyboard: Res<ButtonInput<KeyCode>>, mut pane: ResMut<HierarchicalPane>) {
+    if keyboard.just_pressed(KeyCode::KeyC) {
+        pane.enter_combat = !pane.enter_combat;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Sphere color
 // ---------------------------------------------------------------------------
 
 fn update_sphere_color(
+    time: Res<Time>,
     library: Res<StateMachineLibrary>,
-    machines: Query<(&StateMachineInstance, &MeshMaterial3d<StandardMaterial>)>,
+    mut machines: Query<
+        (
+            &StateMachineInstance,
+            &MeshMaterial3d<StandardMaterial>,
+            &mut Transform,
+        ),
+        With<Agent>,
+    >,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (instance, material_handle) in &machines {
+    for (instance, material_handle, mut transform) in &mut machines {
         let Some(material) = materials.get_mut(material_handle.id()) else {
             continue;
         };
@@ -228,23 +376,79 @@ fn update_sphere_color(
             .map(|s| s.name.as_str())
             .unwrap_or("Idle");
 
-        let (base, emissive) = match active_name {
+        let elapsed = time.elapsed_secs();
+
+        let (base, emissive, y_offset) = match active_name {
             "Windup" => (
                 Color::srgb(0.85, 0.78, 0.24),
                 Color::srgb(0.10, 0.08, 0.01),
+                0.55 + (elapsed * 4.0).sin().abs() * 0.15,
             ),
             "Strike" => (
-                Color::srgb(0.92, 0.48, 0.22),
-                Color::srgb(0.18, 0.07, 0.02),
+                Color::srgb(0.92, 0.38, 0.22),
+                Color::srgb(0.20, 0.06, 0.02),
+                0.55 + (elapsed * 12.0).sin().abs() * 0.05,
             ),
             _ => (
                 Color::srgb(0.30, 0.60, 0.92),
                 Color::srgb(0.02, 0.05, 0.10),
+                0.55 + (elapsed * 1.5).sin().abs() * 0.03,
             ),
         };
         material.base_color = base;
         material.emissive = emissive.into();
+        transform.translation.y = y_offset;
     }
+}
+
+// ---------------------------------------------------------------------------
+// HUD update
+// ---------------------------------------------------------------------------
+
+fn update_hud(
+    library: Res<StateMachineLibrary>,
+    pane: Res<HierarchicalPane>,
+    machines: Query<&StateMachineInstance, With<Agent>>,
+    mut hud: Query<&mut Text, With<HudText>>,
+) {
+    let Ok(instance) = machines.single() else {
+        return;
+    };
+    let Ok(mut text) = hud.single_mut() else {
+        return;
+    };
+    let Some(definition) = library.definition(instance.definition_id) else {
+        return;
+    };
+
+    let leaf_name = instance
+        .active_leaf()
+        .and_then(|sid| definition.state(sid))
+        .map(|s| s.name.as_str())
+        .unwrap_or("None");
+
+    let path: Vec<&str> = instance
+        .active_path
+        .iter()
+        .filter_map(|sid| definition.state(*sid).map(|s| s.name.as_str()))
+        .collect();
+    let path_str = if path.is_empty() {
+        leaf_name.to_string()
+    } else {
+        let mut p = path.join(" > ");
+        p.push_str(&format!(" > {leaf_name}"));
+        p
+    };
+
+    let combat_status = if pane.enter_combat { "ON" } else { "OFF" };
+
+    **text = format!(
+        "Leaf state: {leaf_name}\n\
+         Full path: {path_str}\n\
+         Combat toggle: {combat_status}\n\
+         Revision: {}",
+        instance.runtime_revision,
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -253,40 +457,96 @@ fn update_sphere_color(
 
 fn update_pane_monitors(
     library: Res<StateMachineLibrary>,
-    machines: Query<&StateMachineInstance>,
+    machines: Query<&StateMachineInstance, With<Agent>>,
     mut pane: ResMut<HierarchicalPane>,
 ) {
-    for instance in &machines {
-        let Some(definition) = library.definition(instance.definition_id) else {
-            continue;
-        };
-        pane.active_state = instance
-            .active_leaf()
-            .and_then(|sid| definition.state(sid))
-            .map(|s| s.name.clone())
-            .unwrap_or_else(|| "None".into());
-    }
+    let Ok(instance) = machines.single() else {
+        return;
+    };
+    let Some(definition) = library.definition(instance.definition_id) else {
+        return;
+    };
+    pane.active_state = instance
+        .active_leaf()
+        .and_then(|sid| definition.state(sid))
+        .map(|s| s.name.clone())
+        .unwrap_or_else(|| "None".into());
+
+    let path: Vec<String> = instance
+        .active_path
+        .iter()
+        .filter_map(|sid| definition.state(*sid).map(|s| s.name.clone()))
+        .collect();
+    pane.state_path = if path.is_empty() {
+        pane.active_state.clone()
+    } else {
+        path.join(" > ")
+    };
 }
 
 // ---------------------------------------------------------------------------
-// Log lifecycle messages
+// Transition log
 // ---------------------------------------------------------------------------
 
-fn log_messages(
+fn update_transition_log(
+    library: Res<StateMachineLibrary>,
     mut entered: MessageReader<StateEntered>,
     mut exited: MessageReader<StateExited>,
     mut triggered: MessageReader<TransitionTriggered>,
+    mut history: Local<Vec<String>>,
+    mut log_text: Query<&mut Text, With<TransitionLog>>,
 ) {
+    let mut changed = false;
     for event in exited.read() {
-        info!("Exited state {:?} on {:?}", event.state_id, event.entity);
+        let name = library
+            .definition(event.definition_id)
+            .and_then(|d| d.state(event.state_id))
+            .map(|s| s.name.as_str())
+            .unwrap_or("?");
+        history.push(format!("  EXIT  {name}"));
+        changed = true;
     }
     for event in entered.read() {
-        info!("Entered state {:?} on {:?}", event.state_id, event.entity);
+        let name = library
+            .definition(event.definition_id)
+            .and_then(|d| d.state(event.state_id))
+            .map(|s| s.name.as_str())
+            .unwrap_or("?");
+        history.push(format!("  ENTER {name}"));
+        changed = true;
     }
     for event in triggered.read() {
-        info!(
-            "Transition {:?}: {:?} -> {:?}",
-            event.transition_id, event.source, event.target,
-        );
+        let source = event
+            .source
+            .map(|sid| {
+                library
+                    .definition(event.definition_id)
+                    .and_then(|d| d.state(sid))
+                    .map(|s| s.name.clone())
+                    .unwrap_or_else(|| format!("{:?}", sid))
+            })
+            .unwrap_or_else(|| "Any".into());
+        let target = event
+            .target
+            .map(|sid| {
+                library
+                    .definition(event.definition_id)
+                    .and_then(|d| d.state(sid))
+                    .map(|s| s.name.clone())
+                    .unwrap_or_else(|| format!("{:?}", sid))
+            })
+            .unwrap_or_else(|| "Pop".into());
+        history.push(format!("  {source} -> {target}"));
+        changed = true;
     }
+    if !changed {
+        return;
+    }
+    while history.len() > 12 {
+        history.remove(0);
+    }
+    let Ok(mut text) = log_text.single_mut() else {
+        return;
+    };
+    **text = format!("Transition log:\n{}", history.join("\n"));
 }

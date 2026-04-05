@@ -240,18 +240,13 @@ fn update_machine_visuals(
             .unwrap_or("Idle");
 
         let (base_color, emissive) = match active_name {
-            "Run" | "Strike" | "Alert" => (
-                Color::srgb(0.92, 0.48, 0.22),
-                Color::srgb(0.18, 0.07, 0.02),
-            ),
-            "Move" | "Windup" | "Pursue" => (
-                Color::srgb(0.85, 0.78, 0.24),
-                Color::srgb(0.10, 0.08, 0.01),
-            ),
-            _ => (
-                Color::srgb(0.30, 0.60, 0.92),
-                Color::srgb(0.02, 0.05, 0.10),
-            ),
+            "Run" | "Strike" | "Alert" => {
+                (Color::srgb(0.92, 0.48, 0.22), Color::srgb(0.18, 0.07, 0.02))
+            }
+            "Move" | "Windup" | "Pursue" => {
+                (Color::srgb(0.85, 0.78, 0.24), Color::srgb(0.10, 0.08, 0.01))
+            }
+            _ => (Color::srgb(0.30, 0.60, 0.92), Color::srgb(0.02, 0.05, 0.10)),
         };
 
         material.base_color = base_color;

@@ -198,6 +198,7 @@ fn setup_machine(
 }
 
 fn setup_overlay(mut commands: Commands) {
+    // State overlay (top-left)
     commands
         .spawn((
             Node {
@@ -215,6 +216,39 @@ fn setup_overlay(mut commands: Commands) {
             TextFont::from_font_size(14.0),
             TextColor(Color::WHITE),
             OverlayText,
+        ));
+
+    // Instructions (top-right)
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: px(12),
+                right: px(12),
+                width: px(280),
+                padding: UiRect::all(px(12)),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.02, 0.05, 0.09, 0.82)),
+        ))
+        .with_child((
+            Text::new(
+                "Debug Overlay Showcase\n\n\
+                 This example runs an\n\
+                 automated 10s demo cycle:\n\n\
+                 0-1.5s: Idle -> Patrol\n\
+                 1.5-4s: target visible\n\
+                 4-5.5s: in attack range\n\
+                 5.5s:   stun signal\n\
+                 8-10s:  target hidden\n\n\
+                 States: Idle, Patrol,\n\
+                 Combat (Chase/Attack),\n\
+                 Stunned (push/pop)\n\n\
+                 Gizmos show detection\n\
+                 and attack ranges.",
+            ),
+            TextFont::from_font_size(13.0),
+            TextColor(Color::srgb(0.6, 0.65, 0.7)),
         ));
 }
 
