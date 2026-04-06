@@ -5010,6 +5010,7 @@ dependencies = [
  "bevy_input_focus",
  "bevy_ui_widgets",
  "saddle-ai-state-machine",
+ "saddle-bevy-e2e",
  "saddle-pane",
 ]
 
@@ -5017,6 +5018,14 @@ dependencies = [
 name = "saddle-ai-utility-ai"
 version = "0.1.0"
 source = "git+https://github.com/julien-blanchon/saddle-ai-utility-ai#369f00fb1df46f7e804981f9b5188c4835c55b1b"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "saddle-bevy-e2e"
+version = "0.1.0"
+source = "git+https://github.com/julien-blanchon/saddle-bevy-e2e#18b89f5851c6b2edd7067f737b89a3f332149ea4"
 dependencies = [
  "bevy",
 ]

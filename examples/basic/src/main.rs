@@ -203,22 +203,22 @@ fn setup_machine(
         .add_state_to_region(run, root)
         .add_state_to_region(jump, root)
         .set_region_initial(root, idle)
-        // Idle → Run after 2.0s
+        // Idle → Run after 5.0s
         .add_transition(
             TransitionDefinition::replace(idle, run)
-                .with_trigger(TransitionTrigger::after_seconds(2.0))
+                .with_trigger(TransitionTrigger::after_seconds(5.0))
                 .with_guard(GUARD_AUTO),
         )
-        // Run → Jump after 1.5s
+        // Run → Jump after 4.0s
         .add_transition(
             TransitionDefinition::replace(run, jump)
-                .with_trigger(TransitionTrigger::after_seconds(1.5))
+                .with_trigger(TransitionTrigger::after_seconds(4.0))
                 .with_guard(GUARD_AUTO),
         )
-        // Jump → Idle after 1.0s (cycle restarts)
+        // Jump → Idle after 3.0s (cycle restarts)
         .add_transition(
             TransitionDefinition::replace(jump, idle)
-                .with_trigger(TransitionTrigger::after_seconds(1.0))
+                .with_trigger(TransitionTrigger::after_seconds(3.0))
                 .with_guard(GUARD_AUTO),
         )
         // Manual reset via signal from any state

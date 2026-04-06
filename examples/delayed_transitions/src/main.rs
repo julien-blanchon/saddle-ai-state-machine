@@ -88,6 +88,7 @@ fn main() {
         (
             sync_pane_time_scale,
             handle_keyboard,
+            reset_wants_open_on_enter,
             update_door_visual,
             update_hud,
             update_pane_monitors,
@@ -212,17 +213,17 @@ fn setup_machine(
         // Opening → Open after animation time
         .add_transition(
             TransitionDefinition::replace(opening, open)
-                .with_trigger(TransitionTrigger::after_seconds(1.0)),
+                .with_trigger(TransitionTrigger::after_seconds(3.0)),
         )
         // Open → Closing after hold time
         .add_transition(
             TransitionDefinition::replace(open, closing)
-                .with_trigger(TransitionTrigger::after_seconds(2.0)),
+                .with_trigger(TransitionTrigger::after_seconds(5.0)),
         )
         // Closing → Closed after animation time
         .add_transition(
             TransitionDefinition::replace(closing, closed)
-                .with_trigger(TransitionTrigger::after_seconds(1.0)),
+                .with_trigger(TransitionTrigger::after_seconds(3.0)),
         );
 
     let definition_id = definitions.register(builder.build().unwrap()).unwrap();
@@ -307,10 +308,10 @@ fn setup_hud(mut commands: Commands) {
                 "Controls:\n\
                  [Space] Open the door\n\n\
                  Door cycle:\n\
-                 Closed -> Opening (1s)\n\
+                 Closed -> Opening (3s)\n\
                  Opening -> Open\n\
-                 Open -> Closing (2s)\n\
-                 Closing -> Closed (1s)\n\n\
+                 Open -> Closing (5s)\n\
+                 Closing -> Closed (3s)\n\n\
                  Each transition fires\n\
                  after a timer expires.\n\
                  The door panel slides up\n\
@@ -352,6 +353,30 @@ fn handle_keyboard(
 // Door visual — slide panel up based on state
 // ---------------------------------------------------------------------------
 
+/// Reset `wants_open` once the door leaves the Closed state so it doesn't loop forever.
+fn reset_wants_open_on_enter(
+    library: Res<StateMachineLibrary>,
+    mut entered: MessageReader<StateEntered>,
+    mut machines: Query<(&StateMachineInstance, &mut Blackboard), With<DoorAgent>>,
+) {
+    for event in entered.read() {
+        let Some(definition) = library.definition(event.definition_id) else {
+            continue;
+        };
+        let state_name = definition
+            .state(event.state_id)
+            .map(|s| s.name.as_str())
+            .unwrap_or("");
+        if state_name == "Opening" {
+            if let Ok((_, mut blackboard)) = machines.get_mut(event.entity) {
+                if let Some(key_id) = definition.find_blackboard_key("wants_open") {
+                    let _ = blackboard.set(key_id, false);
+                }
+            }
+        }
+    }
+}
+
 fn update_door_visual(
     library: Res<StateMachineLibrary>,
     mut machines: Query<
@@ -384,12 +409,12 @@ fn update_door_visual(
 
         let (y_pos, color) = match active_name {
             "Opening" => {
-                let t = (elapsed / 1.0).clamp(0.0, 1.0);
+                let t = (elapsed / 3.0).clamp(0.0, 1.0);
                 (1.4 + t * 2.8, Color::srgb(0.85, 0.78, 0.24))
             }
             "Open" => (1.4 + 2.8, Color::srgb(0.24, 0.84, 0.44)),
             "Closing" => {
-                let t = (elapsed / 1.0).clamp(0.0, 1.0);
+                let t = (elapsed / 3.0).clamp(0.0, 1.0);
                 (1.4 + (1.0 - t) * 2.8, Color::srgb(0.92, 0.48, 0.22))
             }
             _ => (1.4, Color::srgb(0.45, 0.35, 0.25)),

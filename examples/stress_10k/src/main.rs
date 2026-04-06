@@ -25,7 +25,7 @@ fn setup_machines(mut commands: Commands, mut definitions: ResMut<StateMachineLi
         .set_region_initial(root, idle)
         .add_transition(
             TransitionDefinition::replace(idle, run)
-                .with_trigger(TransitionTrigger::after_seconds(0.5)),
+                .with_trigger(TransitionTrigger::after_seconds(2.0)),
         );
     let definition_id = definitions.register(builder.build().unwrap()).unwrap();
 

@@ -161,15 +161,15 @@ fn setup_machine(
         .add_state_to_region(chase, root)
         .add_state_to_region(stunned, root)
         .set_region_initial(root, patrol)
-        // Patrol → Chase after 2s
+        // Patrol → Chase after 5s
         .add_transition(
             TransitionDefinition::replace(patrol, chase)
-                .with_trigger(TransitionTrigger::after_seconds(2.0)),
+                .with_trigger(TransitionTrigger::after_seconds(5.0)),
         )
-        // Chase → Patrol after 2s
+        // Chase → Patrol after 5s
         .add_transition(
             TransitionDefinition::replace(chase, patrol)
-                .with_trigger(TransitionTrigger::after_seconds(2.0)),
+                .with_trigger(TransitionTrigger::after_seconds(5.0)),
         )
         // Any state: push Stunned via signal (interrupt)
         .add_transition(
@@ -179,9 +179,9 @@ fn setup_machine(
             )
             .with_signal(SIGNAL_STUN),
         )
-        // Pop back after 1.0s of stun
+        // Pop back after 3.0s of stun
         .add_transition(
-            TransitionDefinition::pop(stunned).with_trigger(TransitionTrigger::after_seconds(1.0)),
+            TransitionDefinition::pop(stunned).with_trigger(TransitionTrigger::after_seconds(3.0)),
         );
 
     let definition_id = definitions.register(builder.build().unwrap()).unwrap();
@@ -271,7 +271,7 @@ fn setup_hud(mut commands: Commands) {
                  state is pushed to a stack.\n\
                  After stun ends, it pops\n\
                  back to the previous state.\n\n\
-                 Auto-stun every ~4s.\n\
+                 Auto-stun every ~12s.\n\
                  Press Space for manual stun.",
             ),
             TextFont::from_font_size(13.0),
@@ -308,7 +308,7 @@ fn auto_stun_cycle(
     agents: Query<(Entity, &StateMachineInstance), With<Agent>>,
 ) {
     *timer += time.delta_secs();
-    if *timer >= 4.0 {
+    if *timer >= 12.0 {
         *timer = 0.0;
         for (entity, instance) in &agents {
             // Only auto-stun if not already stunned

@@ -116,10 +116,10 @@ fn setup_machine(
         .add_state_to_region(attack, combat_region)
         .set_region_initial(combat_region, chase)
         .set_state_history_mode(combat, HistoryMode::Deep)
-        .set_state_min_active_seconds(attack, 0.35)
+        .set_state_min_active_seconds(attack, 1.0)
         .add_transition(
             TransitionDefinition::replace(idle, patrol)
-                .with_trigger(TransitionTrigger::after_seconds(0.8)),
+                .with_trigger(TransitionTrigger::after_seconds(2.5)),
         )
         .add_transition(TransitionDefinition::replace(patrol, combat).with_guard(GUARD_VISIBLE))
         .add_transition(TransitionDefinition::replace(combat, patrol).with_guard(GUARD_HIDDEN))
@@ -134,7 +134,7 @@ fn setup_machine(
                 .with_signal(SIGNAL_STUN),
         )
         .add_transition(
-            TransitionDefinition::pop(stunned).with_trigger(TransitionTrigger::after_seconds(1.0)),
+            TransitionDefinition::pop(stunned).with_trigger(TransitionTrigger::after_seconds(3.0)),
         );
 
     let definition = builder.build().unwrap();
@@ -235,12 +235,12 @@ fn setup_overlay(mut commands: Commands) {
             Text::new(
                 "Debug Overlay Showcase\n\n\
                  This example runs an\n\
-                 automated 10s demo cycle:\n\n\
-                 0-1.5s: Idle -> Patrol\n\
-                 1.5-4s: target visible\n\
-                 4-5.5s: in attack range\n\
-                 5.5s:   stun signal\n\
-                 8-10s:  target hidden\n\n\
+                 automated 25s demo cycle:\n\n\
+                 0-4s:   Idle -> Patrol\n\
+                 4-10s:  target visible\n\
+                 10-14s: in attack range\n\
+                 14s:    stun signal\n\
+                 20-25s: target hidden\n\n\
                  States: Idle, Patrol,\n\
                  Combat (Chase/Attack),\n\
                  Stunned (push/pop)\n\n\
@@ -260,21 +260,21 @@ fn drive_demo_inputs(
     mut agent_query: Query<(Entity, &mut Blackboard), With<ShowcaseAgent>>,
 ) {
     timeline.elapsed += time.delta_secs();
-    let cycle = (timeline.elapsed / 10.0).floor() as u32;
-    let phase = timeline.elapsed % 10.0;
+    let cycle = (timeline.elapsed / 25.0).floor() as u32;
+    let phase = timeline.elapsed % 25.0;
 
     let Ok((entity, mut blackboard)) = agent_query.single_mut() else {
         return;
     };
 
-    let target_visible = (1.5..8.0).contains(&phase);
-    let in_attack_range = (4.0..5.5).contains(&phase) || (6.8..7.6).contains(&phase);
+    let target_visible = (4.0..20.0).contains(&phase);
+    let in_attack_range = (10.0..14.0).contains(&phase) || (17.0..19.0).contains(&phase);
     blackboard.set(keys.target_visible, target_visible).unwrap();
     blackboard
         .set(keys.in_attack_range, in_attack_range)
         .unwrap();
 
-    if phase >= 5.5 && timeline.stun_cycle != Some(cycle) {
+    if phase >= 14.0 && timeline.stun_cycle != Some(cycle) {
         signals.write(StateMachineSignal::new(entity, SIGNAL_STUN));
         timeline.stun_cycle = Some(cycle);
     }

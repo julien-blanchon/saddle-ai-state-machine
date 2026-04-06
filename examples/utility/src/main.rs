@@ -209,15 +209,15 @@ fn setup_machine(
             TransitionDefinition::replace(idle, flee)
                 .with_scorer(SCORE_FLEE, UtilityPolicy::BestScore),
         )
-        // Gather → Idle after 1.5s (re-evaluate)
+        // Gather → Idle after 4.0s (re-evaluate)
         .add_transition(
             TransitionDefinition::replace(gather, idle)
-                .with_trigger(TransitionTrigger::after_seconds(1.5)),
+                .with_trigger(TransitionTrigger::after_seconds(4.0)),
         )
-        // Flee → Idle after 1.5s (re-evaluate)
+        // Flee → Idle after 4.0s (re-evaluate)
         .add_transition(
             TransitionDefinition::replace(flee, idle)
-                .with_trigger(TransitionTrigger::after_seconds(1.5)),
+                .with_trigger(TransitionTrigger::after_seconds(4.0)),
         );
 
     let definition_id = definitions.register(builder.build().unwrap()).unwrap();
@@ -340,8 +340,8 @@ fn drive_scores(
         let flee_key = definition.find_blackboard_key("flee_score").unwrap();
 
         // Oscillating scores influenced by the pane bias
-        let raw_gather = 0.5 + 0.5 * (t * 0.8).sin();
-        let raw_flee = 0.5 + 0.5 * (t * 0.8 + std::f32::consts::PI).sin();
+        let raw_gather = 0.5 + 0.5 * (t * 0.3).sin();
+        let raw_flee = 0.5 + 0.5 * (t * 0.3 + std::f32::consts::PI).sin();
         let gather_score = (raw_gather * pane.gather_bias * 2.0).clamp(0.0, 1.0);
         let flee_score = (raw_flee * (1.0 - pane.gather_bias) * 2.0).clamp(0.0, 1.0);
 

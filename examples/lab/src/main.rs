@@ -3,14 +3,19 @@ use bevy::prelude::*;
 use saddle_ai_state_machine::*;
 use saddle_pane::prelude::*;
 
+#[cfg(feature = "e2e")]
+mod e2e;
+#[cfg(feature = "e2e")]
+mod scenarios;
+
 const GUARD_VISIBLE: GuardId = GuardId(1);
 const GUARD_HIDDEN: GuardId = GuardId(2);
 const GUARD_IN_RANGE: GuardId = GuardId(3);
 const GUARD_OUT_OF_RANGE: GuardId = GuardId(4);
-const SIGNAL_STUN: SignalId = SignalId(1);
+pub(crate) const SIGNAL_STUN: SignalId = SignalId(1);
 
 #[derive(Component)]
-struct LabAgent;
+pub(crate) struct LabAgent;
 
 #[derive(Component)]
 struct LabTarget;
@@ -23,16 +28,16 @@ struct LabClock {
 
 #[derive(Resource, Clone, Pane)]
 #[pane(title = "FSM Lab")]
-struct StateMachineLabPane {
+pub(crate) struct StateMachineLabPane {
     #[pane(slider, min = 0.1, max = 2.5, step = 0.05)]
-    time_scale: f32,
-    event_driven: bool,
+    pub time_scale: f32,
+    pub event_driven: bool,
     #[pane(slider, min = 1.0, max = 8.0, step = 0.1)]
-    visibility_radius: f32,
+    pub visibility_radius: f32,
     #[pane(slider, min = 0.5, max = 4.0, step = 0.1)]
-    attack_radius: f32,
+    pub attack_radius: f32,
     #[pane(slider, min = 1.0, max = 12.0, step = 0.25)]
-    stun_interval: f32,
+    pub stun_interval: f32,
 }
 
 impl Default for StateMachineLabPane {
@@ -48,9 +53,32 @@ impl Default for StateMachineLabPane {
 }
 
 #[derive(Resource, Clone, Copy)]
-struct LabKeys {
-    target_visible: BlackboardKeyId,
-    in_attack_range: BlackboardKeyId,
+pub(crate) struct LabKeys {
+    pub target_visible: BlackboardKeyId,
+    pub in_attack_range: BlackboardKeyId,
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostics resource — observable surface for E2E assertions
+// ---------------------------------------------------------------------------
+
+#[derive(Resource, Default, Clone, Debug)]
+pub(crate) struct LabDiagnostics {
+    pub active_leaf_name: String,
+    pub active_path_names: Vec<String>,
+    pub is_in_compound_state: bool,
+    pub stack_depth: usize,
+    pub leaf_elapsed_seconds: f32,
+    pub runtime_revision: u64,
+    pub target_visible: bool,
+    pub in_attack_range: bool,
+    pub trace_entry_count: usize,
+    pub has_debug_annotations: bool,
+    pub annotation_circle_count: usize,
+    pub annotation_line_count: usize,
+    pub annotation_path_count: usize,
+    pub total_transitions_observed: u64,
+    pub history_snapshot_count: usize,
 }
 
 fn main() {
@@ -67,6 +95,7 @@ fn main() {
     app.register_pane::<StateMachineLabPane>();
     app.init_resource::<LabClock>();
     app.init_resource::<StateMachineLabPane>();
+    app.init_resource::<LabDiagnostics>();
     app.add_systems(Startup, setup);
     app.add_systems(
         Update,
@@ -75,6 +104,7 @@ fn main() {
             drive_machine,
             animate_target,
             sync_annotations,
+            sync_diagnostics.after(AiStateMachineSystems::DebugVisualize),
         ),
     );
 
@@ -105,6 +135,9 @@ fn main() {
                 .unwrap_or(false)
         });
     }
+
+    #[cfg(feature = "e2e")]
+    app.add_plugins(e2e::StateMachineLabE2EPlugin);
 
     app.run();
 }
@@ -187,10 +220,10 @@ fn setup(
         .add_state_to_region(attack, combat_region)
         .set_region_initial(combat_region, chase)
         .set_state_history_mode(combat, HistoryMode::Deep)
-        .set_state_min_active_seconds(attack, 0.35)
+        .set_state_min_active_seconds(attack, 1.0)
         .add_transition(
             TransitionDefinition::replace(idle, patrol)
-                .with_trigger(TransitionTrigger::after_seconds(0.8)),
+                .with_trigger(TransitionTrigger::after_seconds(2.5)),
         )
         .add_transition(TransitionDefinition::replace(patrol, combat).with_guard(GUARD_VISIBLE))
         .add_transition(TransitionDefinition::replace(combat, patrol).with_guard(GUARD_HIDDEN))
@@ -205,7 +238,7 @@ fn setup(
                 .with_signal(SIGNAL_STUN),
         )
         .add_transition(
-            TransitionDefinition::pop(stunned).with_trigger(TransitionTrigger::after_seconds(1.0)),
+            TransitionDefinition::pop(stunned).with_trigger(TransitionTrigger::after_seconds(3.0)),
         );
 
     let definition = builder.build().unwrap();
@@ -290,7 +323,7 @@ fn drive_machine(
         .set(keys.in_attack_range, in_attack_range)
         .unwrap();
 
-    if target_visible && clock.stun_cycle != Some(cycle) {
+    if target_visible && clock.elapsed >= stun_interval && clock.stun_cycle != Some(cycle) {
         signals.write(StateMachineSignal::new(entity, SIGNAL_STUN));
         clock.stun_cycle = Some(cycle);
     }
@@ -326,4 +359,62 @@ fn sync_annotations(
             css::WHITE.into()
         };
     }
+}
+
+fn sync_diagnostics(
+    library: Res<StateMachineLibrary>,
+    keys: Res<LabKeys>,
+    mut diagnostics: ResMut<LabDiagnostics>,
+    agents: Query<
+        (
+            &StateMachineInstance,
+            &Blackboard,
+            Option<&AiDebugAnnotations>,
+        ),
+        With<LabAgent>,
+    >,
+) {
+    let Ok((instance, blackboard, annotations)) = agents.single() else {
+        return;
+    };
+    let Some(definition) = library.definition(instance.definition_id) else {
+        return;
+    };
+
+    diagnostics.active_leaf_name = instance
+        .active_leaf()
+        .and_then(|sid| definition.state(sid))
+        .map(|s| s.name.clone())
+        .unwrap_or_default();
+
+    diagnostics.active_path_names = instance
+        .active_path
+        .iter()
+        .filter_map(|sid| definition.state(*sid).map(|s| s.name.clone()))
+        .collect();
+
+    diagnostics.is_in_compound_state = diagnostics.active_path_names.len() > 1;
+    diagnostics.stack_depth = instance.stack.len();
+    diagnostics.leaf_elapsed_seconds = instance
+        .active_leaf()
+        .and_then(|sid| instance.state_elapsed_seconds.get(sid.0 as usize).copied())
+        .unwrap_or(0.0);
+    diagnostics.runtime_revision = instance.runtime_revision;
+    diagnostics.target_visible = blackboard
+        .get_bool(keys.target_visible)
+        .unwrap()
+        .unwrap_or(false);
+    diagnostics.in_attack_range = blackboard
+        .get_bool(keys.in_attack_range)
+        .unwrap()
+        .unwrap_or(false);
+    diagnostics.trace_entry_count = instance.trace.entries.len();
+    diagnostics.has_debug_annotations = annotations.is_some();
+    if let Some(ann) = annotations {
+        diagnostics.annotation_circle_count = ann.circles.len();
+        diagnostics.annotation_line_count = ann.lines.len();
+        diagnostics.annotation_path_count = ann.paths.len();
+    }
+    diagnostics.total_transitions_observed = instance.runtime_revision;
+    diagnostics.history_snapshot_count = instance.history.iter().filter(|h| h.is_some()).count();
 }

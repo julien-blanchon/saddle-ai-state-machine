@@ -163,11 +163,11 @@ fn setup_machine(
         // Auto-cycle
         .add_transition(
             TransitionDefinition::replace(idle, alert)
-                .with_trigger(TransitionTrigger::after_seconds(2.0)),
+                .with_trigger(TransitionTrigger::after_seconds(5.0)),
         )
         .add_transition(
             TransitionDefinition::replace(alert, idle)
-                .with_trigger(TransitionTrigger::after_seconds(2.0)),
+                .with_trigger(TransitionTrigger::after_seconds(5.0)),
         )
         // Manual toggle
         .add_transition(TransitionDefinition::replace(idle, alert).with_signal(SIGNAL_TOGGLE))

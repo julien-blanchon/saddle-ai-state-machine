@@ -133,8 +133,19 @@ Deferred in v0.1:
 | `save_load` | Reflection-backed instance + blackboard round-trip | `cargo run -p saddle-ai-state-machine-example-save-load` |
 | `stress_10k` | Large-instance stress smoke for runtime stability | `cargo run -p saddle-ai-state-machine-example-stress-10k` |
 | `layered_ai` | Batch-level integration demo: state machine + behavior tree + utility AI + GOAP in one sandbox | `cargo run -p saddle-ai-state-machine-example-layered-ai` |
+| `lab` | Integration lab with E2E scenarios for automated feature validation | `cargo run -p saddle-ai-state-machine-lab` |
 
 All windowed examples now expose live tuning through `saddle-pane`.
+
+### E2E Testing
+
+The lab includes 10 automated E2E scenarios that validate every feature area with screenshots and assertions. Run them with:
+
+```bash
+cargo run -p saddle-ai-state-machine-lab --features e2e -- <scenario_name>
+```
+
+Available: `smoke_lab`, `basic_cycling`, `hierarchical`, `pushdown_stun`, `guard_transitions`, `delayed_transitions`, `debug_annotations`, `history_restore`, `trace_recording`, `full_lifecycle`. See [lab/README.md](examples/lab/README.md) for details.
 
 ## Asset Loading
 

@@ -8,7 +8,7 @@ use saddle_pane::prelude::*;
 const FSM_VISIBLE: fsm::GuardId = fsm::GuardId(1);
 const FSM_HIDDEN: fsm::GuardId = fsm::GuardId(2);
 const FSM_PANIC: fsm::GuardId = fsm::GuardId(3);
-const FSM_CALM: fsm::GuardId = fsm::GuardId(4);
+const FSM_CALM_AND_VISIBLE: fsm::GuardId = fsm::GuardId(4);
 
 #[derive(Resource, Clone, Pane)]
 #[pane(title = "Layered AI Sandbox")]
@@ -149,11 +149,16 @@ fn register_state_machine_callbacks(app: &mut App) {
             .unwrap()
             .unwrap_or(false)
     });
-    callbacks.register_guard(FSM_CALM, |_, _, definition, _, blackboard, _| {
-        !blackboard
+    callbacks.register_guard(FSM_CALM_AND_VISIBLE, |_, _, definition, _, blackboard, _| {
+        let calm = !blackboard
             .get_bool(definition.find_blackboard_key("panic").unwrap())
             .unwrap()
-            .unwrap_or(false)
+            .unwrap_or(false);
+        let visible = blackboard
+            .get_bool(definition.find_blackboard_key("target_visible").unwrap())
+            .unwrap()
+            .unwrap_or(false);
+        calm && visible
     });
 }
 
@@ -373,8 +378,7 @@ fn build_guard_state_machine(
         .add_transition(fsm::TransitionDefinition::replace(combat, retreat).with_guard(FSM_PANIC))
         .add_transition(
             fsm::TransitionDefinition::replace(retreat, combat)
-                .with_guard(FSM_CALM)
-                .with_guard(FSM_VISIBLE),
+                .with_guard(FSM_CALM_AND_VISIBLE),
         )
         .add_transition(fsm::TransitionDefinition::replace(retreat, patrol).with_guard(FSM_HIDDEN));
 

@@ -176,11 +176,11 @@ fn setup_machine(
         .set_region_initial(locomotion, grounded)
         .add_transition(
             TransitionDefinition::replace(grounded, jump)
-                .with_trigger(TransitionTrigger::after_seconds(2.5)),
+                .with_trigger(TransitionTrigger::after_seconds(6.0)),
         )
         .add_transition(
             TransitionDefinition::replace(jump, grounded)
-                .with_trigger(TransitionTrigger::after_seconds(1.0)),
+                .with_trigger(TransitionTrigger::after_seconds(3.0)),
         )
         // Manual jump signal
         .add_transition(TransitionDefinition::replace(grounded, jump).with_signal(SIGNAL_JUMP))
@@ -190,11 +190,11 @@ fn setup_machine(
         .set_region_initial(action, idle_action)
         .add_transition(
             TransitionDefinition::replace(idle_action, attack)
-                .with_trigger(TransitionTrigger::after_seconds(3.0)),
+                .with_trigger(TransitionTrigger::after_seconds(7.0)),
         )
         .add_transition(
             TransitionDefinition::replace(attack, idle_action)
-                .with_trigger(TransitionTrigger::after_seconds(1.0)),
+                .with_trigger(TransitionTrigger::after_seconds(3.0)),
         )
         // Manual attack signal
         .add_transition(

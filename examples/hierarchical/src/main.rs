@@ -204,11 +204,11 @@ fn setup_machine(
         // Inside Combat: Windup ↔ Strike cycling
         .add_transition(
             TransitionDefinition::replace(windup, strike)
-                .with_trigger(TransitionTrigger::after_seconds(0.8)),
+                .with_trigger(TransitionTrigger::after_seconds(2.5)),
         )
         .add_transition(
             TransitionDefinition::replace(strike, windup)
-                .with_trigger(TransitionTrigger::after_seconds(0.6)),
+                .with_trigger(TransitionTrigger::after_seconds(2.0)),
         );
 
     let definition_id = definitions.register(builder.build().unwrap()).unwrap();
