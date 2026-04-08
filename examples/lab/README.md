@@ -49,13 +49,16 @@ Output lands in `e2e_output/<scenario_name>/` with screenshots and `log.txt`.
 | `history_restore` | Deep history | 4 | Re-entering Combat restores Attack (not Chase) |
 | `trace_recording` | Trace buffer | 2 | Trace entries recorded for transitions |
 | `full_lifecycle` | Integration | 8 | Drive through ALL states end-to-end (7 screenshots) |
+| `stun_in_attack` | Push interrupt + deep history | 5 | SIGNAL_STUN interrupts Attack; after stun pops the agent resumes Attack or Combat |
+| `rapid_guard_toggle` | Guard churn | 4 | Rapid visibility toggles do not thrash the machine |
+| `trace_growth` | Trace capacity | 4 | Trace entries grow monotonically across repeated transitions |
 
 ### Run All Scenarios
 
 ```bash
 for s in smoke_lab basic_cycling hierarchical pushdown_stun guard_transitions \
          delayed_transitions debug_annotations history_restore trace_recording \
-         full_lifecycle; do
+         full_lifecycle stun_in_attack rapid_guard_toggle trace_growth; do
     echo "=== $s ==="
     cargo run -p saddle-ai-state-machine-lab --features e2e -- "$s" 2>&1 \
         | grep "\[assertions\]" | head -1
