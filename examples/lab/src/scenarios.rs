@@ -16,6 +16,9 @@ pub fn list_scenarios() -> Vec<&'static str> {
         "history_restore",
         "trace_recording",
         "full_lifecycle",
+        "stun_in_attack",
+        "rapid_guard_toggle",
+        "trace_growth",
     ]
 }
 
@@ -31,6 +34,9 @@ pub fn scenario_by_name(name: &str) -> Option<Scenario> {
         "history_restore" => Some(history_restore()),
         "trace_recording" => Some(trace_recording()),
         "full_lifecycle" => Some(full_lifecycle()),
+        "stun_in_attack" => Some(stun_in_attack()),
+        "rapid_guard_toggle" => Some(rapid_guard_toggle()),
+        "trace_growth" => Some(trace_growth()),
         _ => None,
     }
 }
@@ -396,5 +402,137 @@ fn full_lifecycle() -> Scenario {
         ))
         .then(inspect::log_resource::<LabDiagnostics>("final state"))
         .then(assertions::log_summary("full_lifecycle"))
+        .build()
+}
+
+/// 11. Stun signal fires while agent is in Attack, verify stack and pop back to Attack.
+fn stun_in_attack() -> Scenario {
+    Scenario::builder("stun_in_attack")
+        .description("SIGNAL_STUN interrupts Attack; after stun pops the agent should resume in Attack (or fall back to Combat) because deep history was saved")
+        .then(take_control())
+        // Navigate to Attack state
+        .then(wait_for_state("Patrol", 300))
+        .then(set_blackboard(true, true))
+        .then(wait_for_state("Attack", 60))
+        .then(assert_state("Attack"))
+        // Wait past min_active for Attack (1s = 60 frames)
+        .then(Action::WaitFrames(70))
+        .then(Action::Screenshot("stun_in_attack_before".into()))
+        // Send stun — pushes Stunned on top of Attack
+        .then(send_stun())
+        .then(wait_for_state("Stunned", 30))
+        .then(assert_state("Stunned"))
+        .then(assertions::resource_satisfies::<LabDiagnostics>(
+            "stack has 1 frame (Attack saved)",
+            |d| d.stack_depth >= 1,
+        ))
+        .then(Action::Screenshot("stun_in_attack_stunned".into()))
+        // Pop: after 3s stun timer fires
+        .then(Action::WaitUntil {
+            label: "stun pops".into(),
+            condition: Box::new(|world| {
+                world.resource::<LabDiagnostics>().active_leaf_name != "Stunned"
+            }),
+            max_frames: 300,
+        })
+        .then(assertions::resource_satisfies::<LabDiagnostics>(
+            "no longer stunned after pop",
+            |d| d.active_leaf_name != "Stunned",
+        ))
+        .then(assertions::resource_satisfies::<LabDiagnostics>(
+            "stack empty after pop",
+            |d| d.stack_depth == 0,
+        ))
+        .then(Action::Screenshot("stun_in_attack_popped".into()))
+        .then(inspect::log_resource::<LabDiagnostics>("after stun pop"))
+        .then(assertions::log_summary("stun_in_attack"))
+        .build()
+}
+
+/// 12. Rapidly toggle guards and verify the machine does not get stuck in a transient state.
+fn rapid_guard_toggle() -> Scenario {
+    Scenario::builder("rapid_guard_toggle")
+        .description("Toggle target_visible on/off every 5 frames for 150 frames; machine must remain in a valid leaf state (Patrol, Chase, or Attack) throughout — never stuck or panicking")
+        .then(take_control())
+        .then(wait_for_state("Patrol", 300))
+        .then(assert_state("Patrol"))
+        .then(Action::Screenshot("rapid_toggle_start".into()))
+        // Rapid toggle: 5 frames visible, 5 frames hidden, repeated
+        .then(set_blackboard(true, false))
+        .then(Action::WaitFrames(5))
+        .then(set_blackboard(false, false))
+        .then(Action::WaitFrames(5))
+        .then(set_blackboard(true, false))
+        .then(Action::WaitFrames(5))
+        .then(set_blackboard(false, false))
+        .then(Action::WaitFrames(5))
+        .then(set_blackboard(true, false))
+        .then(Action::WaitFrames(5))
+        .then(set_blackboard(false, false))
+        .then(Action::WaitFrames(5))
+        .then(set_blackboard(true, false))
+        .then(Action::WaitFrames(5))
+        .then(set_blackboard(false, false))
+        .then(Action::WaitFrames(5))
+        .then(set_blackboard(true, false))
+        .then(Action::WaitFrames(5))
+        .then(set_blackboard(false, false))
+        .then(Action::WaitFrames(5))
+        // After 100 frames of toggling the machine must be in a valid leaf
+        .then(assertions::resource_satisfies::<LabDiagnostics>(
+            "machine is in a valid leaf state after rapid toggle",
+            |d| {
+                matches!(
+                    d.active_leaf_name.as_str(),
+                    "Idle" | "Patrol" | "Chase" | "Attack" | "Stunned"
+                )
+            },
+        ))
+        .then(Action::Screenshot("rapid_toggle_end".into()))
+        // Settle back to Patrol cleanly
+        .then(set_blackboard(false, false))
+        .then(wait_for_state("Patrol", 120))
+        .then(assert_state("Patrol"))
+        .then(assertions::log_summary("rapid_guard_toggle"))
+        .build()
+}
+
+/// 13. Verify trace grows with each state transition up to the configured capacity.
+fn trace_growth() -> Scenario {
+    Scenario::builder("trace_growth")
+        .description("Each state transition appends an entry to the trace buffer. Drive Idle->Patrol->Chase->Patrol and verify the trace entry count grows monotonically at each step")
+        .then(take_control())
+        .then(Action::WaitFrames(30))
+        // Phase 1: initial entries from machine boot
+        .then(assertions::resource_satisfies::<LabDiagnostics>(
+            "trace has at least 1 entry at boot",
+            |d| d.trace_entry_count >= 1,
+        ))
+        .then(Action::Screenshot("trace_growth_idle".into()))
+        // Phase 2: Idle -> Patrol adds more entries
+        .then(wait_for_state("Patrol", 300))
+        .then(assertions::resource_satisfies::<LabDiagnostics>(
+            "trace grew after Idle->Patrol",
+            |d| d.trace_entry_count >= 3,
+        ))
+        .then(Action::Screenshot("trace_growth_patrol".into()))
+        // Phase 3: Patrol -> Chase adds entries
+        .then(set_blackboard(true, false))
+        .then(wait_for_state("Chase", 60))
+        .then(assertions::resource_satisfies::<LabDiagnostics>(
+            "trace grew after Patrol->Chase",
+            |d| d.trace_entry_count >= 5,
+        ))
+        .then(Action::Screenshot("trace_growth_chase".into()))
+        // Phase 4: Chase -> Patrol adds entries
+        .then(set_blackboard(false, false))
+        .then(wait_for_state("Patrol", 60))
+        .then(assertions::resource_satisfies::<LabDiagnostics>(
+            "trace grew after Chase->Patrol",
+            |d| d.trace_entry_count >= 7,
+        ))
+        .then(inspect::log_resource::<LabDiagnostics>("trace final"))
+        .then(Action::Screenshot("trace_growth_final".into()))
+        .then(assertions::log_summary("trace_growth"))
         .build()
 }
